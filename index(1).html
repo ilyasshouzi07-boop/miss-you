@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>I miss you, in 58 languages</title>
+<style>
+:root{--bg1:#fff3f5;--bg2:#ffd3df;--ink:#7a1034;--dim:#a8476a;--L:36;color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg1:#16081c;--bg2:#3d1334;--ink:#ffdce7;--dim:#c98aa2;--L:76;color-scheme:dark}}
+:root[data-theme="dark"]{--bg1:#16081c;--bg2:#3d1334;--ink:#ffdce7;--dim:#c98aa2;--L:76;color-scheme:dark}
+html,body{height:100%;margin:0}
+body{background:radial-gradient(ellipse at 50% 42%,var(--bg2),var(--bg1) 75%);color:var(--ink);font-family:Georgia,"Times New Roman",serif;overflow:hidden;touch-action:none}
+canvas{position:fixed;inset:0;width:100%;height:100%;display:block}
+#cap{position:fixed;left:0;right:0;bottom:calc(env(safe-area-inset-bottom,0px) + 56px);text-align:center;pointer-events:none;min-height:3.2em}
+#cap b{display:block;font-size:clamp(20px,4.4vw,30px);font-weight:400;font-style:italic;letter-spacing:.01em}
+#cap i{display:block;font-size:14px;color:var(--dim);font-style:normal;margin-top:4px}
+#hint{position:fixed;left:16px;right:16px;bottom:calc(env(safe-area-inset-bottom,0px) + 16px);text-align:center;font-size:13px;color:var(--dim);pointer-events:none;line-height:1.4}
+</style>
+</head>
+<body>
+<canvas id="c" aria-label="A heart made of the words I miss you in 58 languages"></canvas>
+<div id="cap"><b id="cw"></b><i id="cl"></i></div>
+<div id="hint">Move through the words and they part, like distance. Let go and they find their way back. Tap to send some love.</div>
+<script>
+const FONT='"Noto Sans","Segoe UI",system-ui,"Noto Sans Arabic","Noto Sans JP",sans-serif';
+const LANGS=[["I miss you","English"],["Te extraño","Spanish"],["Tu me manques","French"],["Ich vermisse dich","German"],["Mi manchi","Italian"],["Tenho saudades","Portuguese"],["Ik mis je","Dutch"],["Jag saknar dig","Swedish"],["Tęsknię za tobą","Polish"],["Я скучаю по тебе","Russian"],["Я сумую за тобою","Ukrainian"],["Μου λείπεις","Greek"],["Seni özledim","Turkish"],["وحشتيني","Darija (Moroccan)"],["Twahechtk","Darija (Latin letters)"],["دلم برات تنگ شده","Persian"],["אני מתגעגע אליך","Hebrew"],["तुम्हारी याद आती है","Hindi"],["会いたい","Japanese"],["보고 싶어","Korean"],["我想你","Chinese"],["คิดถึง","Thai"],["Anh nhớ em","Vietnamese"],["Aku rindu kamu","Indonesian"],["Miss na kita","Tagalog"],["Nimekukumbuka","Swahili"],["Mi-e dor de tine","Romanian"],["Kaipaan sinua","Finnish"],["Dwi'n dy golli di","Welsh"],["Chybíš mi","Czech"],["Hiányzol","Hungarian"],["Jeg savner dig","Danish"],["Et trobo a faltar","Catalan"],["তোমাকে মিস করছি","Bengali"],
+["Քեզ կարոտել եմ","Armenian"],["მენატრები","Georgian"],["Aš pasiilgau tavęs","Lithuanian"],["Man tevis pietrūkst","Latvian"],["Ma igatsen sind","Estonian"],["Nedostaješ mi","Serbian"],["Липсваш ми","Bulgarian"],["Chýbaš mi","Slovak"],["Pogrešam te","Slovenian"],["Jeg savner deg","Norwegian"],["Ég sakna þín","Icelandic"],["Më mungon","Albanian"],["Ek mis jou","Afrikaans"],["Ngiyakukhumbula","Zulu"],["Mo ṣe àárò rẹ","Yoruba"],["ናፍቀሽኛል","Amharic"],["உன்னை மிஸ் பண்றேன்","Tamil"],["నిన్ను మిస్ అవుతున్నాను","Telugu"],["تمہاری یاد آتی ہے","Urdu"],["ਤੇਰੀ ਯਾਦ ਆਉਂਦੀ ਹੈ","Punjabi"],["Saya rindu awak","Malay"],["म तिमीलाई सम्झिरहेको छु","Nepali"],["Te desidero","Latin"],["我掛住你","Cantonese"],["Faltan botatzen zaitut","Basque"],["Botote de menos","Galician"]];
+const cv=document.getElementById('c'),ctx=cv.getContext('2d'),cw=document.getElementById('cw'),cl=document.getElementById('cl');
+const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+let W,H,dpr,cx,cy,P=[],bursts=[],amb=[],ptr={x:-999,y:-999},t0=performance.now(),hover=-1,lastCap=-1,Lt=76;
+
+function readTheme(){Lt=parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--L'))||76}
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change',readTheme);
+
+// the classic heart curve as a polygon, centered on its bounding box
+function heartPoly(unit){
+  const pts=[],N=900;
+  for(let i=0;i<=N;i++){const t=i/N*Math.PI*2;
+    pts.push([16*Math.pow(Math.sin(t),3),-(13*Math.cos(t)-5*Math.cos(2*t)-2*Math.cos(3*t)-Math.cos(4*t))])}
+  let y0=1e9,y1=-1e9,x0=1e9,x1=-1e9;
+  pts.forEach(p=>{y0=Math.min(y0,p[1]);y1=Math.max(y1,p[1]);x0=Math.min(x0,p[0]);x1=Math.max(x1,p[0])});
+  const mx=(x0+x1)/2,my=(y0+y1)/2;
+  return{poly:pts.map(p=>[(p[0]-mx)*unit,(p[1]-my)*unit]),top:(y0-my)*unit,bot:(y1-my)*unit}
+}
+// horizontal slices of the heart at height y
+function spans(poly,y){const xs=[];
+  for(let i=0;i<poly.length-1;i++){const a=poly[i],b=poly[i+1];
+    if((a[1]<=y&&b[1]>y)||(b[1]<=y&&a[1]>y))xs.push(a[0]+(y-a[1])/(b[1]-a[1])*(b[0]-a[0]))}
+  xs.sort((m,n)=>m-n);const o=[];for(let i=0;i+1<xs.length;i+=2)o.push([xs[i],xs[i+1]]);return o}
+function clip(m,o){if(!m)return null;for(const q of o){const l=Math.max(m[0],q[0]),r=Math.min(m[1],q[1]);if(r-l>0)return[l,r]}return null}
+
+function build(){
+  W=innerWidth;H=innerHeight;dpr=Math.min(devicePixelRatio||1,2);
+  cv.width=W*dpr;cv.height=H*dpr;ctx.setTransform(dpr,0,0,dpr,0,0);
+  readTheme();t0=performance.now();
+  const unit=Math.min(W*0.92/32,H*0.64/29.5);
+  const size=Math.max(10.5,Math.min(18,unit*0.85)),rowH=size*1.5;
+  cx=W/2;cy=H*0.42;
+  const {poly,top,bot}=heartPoly(unit);
+  P=[];let k=0;const N=LANGS.length,STEP=7;
+  const lang=i=>LANGS[(i*STEP)%N];
+  ctx.font=size+'px '+FONT;
+  const gmin=size*.7,g0=size*.9;
+  const place=(l,r,y)=>{
+    const width=r-l;if(width<size*1.3)return;
+    const list=[];let sum=0;
+    for(;;){let hit=null;
+      for(let t=0;t<10;t++){const lg=lang(k+t),w=ctx.measureText(lg[0]).width;
+        if(sum+w+list.length*gmin<=width){hit=[lg,w,t];break}}
+      if(!hit)break;k+=hit[2]+1;list.push([hit[0],hit[1]]);sum+=hit[1];if(list.length>=8)break}
+    if(!list.length){const w=ctx.measureText('♥').width;if(w>width)return;list.push([['♥','with love'],w]);sum=w}
+    const n=list.length;let sc,gap=0,x=l;
+    if(n===1){sc=Math.min(1.25,width/list[0][1]);x=(l+r)/2-list[0][1]*sc/2}
+    else{sc=Math.max(.8,Math.min(1.3,(width-(n-1)*g0)/sum));gap=(width-sum*sc)/(n-1)}
+    list.forEach(([lg,w])=>{const wd=w*sc;
+      const a=Math.random()*Math.PI*2,rr=Math.max(W,H)*(.55+Math.random()*.4);
+      P.push({txt:lg[0],lang:lg[1],hx:x+wd/2,hy:y,size:size*sc,w:wd,
+        x:cx+Math.cos(a)*rr,y:cy+Math.sin(a)*rr,vx:0,vy:0,delay:reduce?0:Math.random()*1.8,
+        hue:0,ph:Math.random()*6.28});
+      x+=wd+gap})
+  };
+  const hh=size*.6;
+  for(let y=top+size*.95;y<bot-size*.3;y+=rowH){
+    const up=spans(poly,y-hh),dn=spans(poly,y+hh);
+    spans(poly,y).forEach(m=>{const c=clip(clip(m,up),dn);if(c)place(c[0]+2,c[1]-2,y)})
+  }
+  let mr=1;P.forEach(q=>mr=Math.max(mr,Math.hypot(q.hx,q.hy)));
+  P.forEach(q=>{q.s=Math.hypot(q.hx,q.hy)/mr;q.hue=(348+Math.random()*14-q.s*22+360)%360});
+  amb=Array.from({length:26},()=>({x:Math.random()*W,y:Math.random()*H,v:.2+Math.random()*.4,s:8+Math.random()*14,ph:Math.random()*6.28}));
+}
+
+function pulse(p){const a=(p-.05)/.045,b=(p-.26)/.055;return Math.exp(-a*a)+.7*Math.exp(-b*b)}
+
+function frame(now){
+  const t=(now-t0)/1000,per=1.4,p=(t%per)/per;
+  const B=1+(reduce?.008:.045)*pulse(p);
+  ctx.clearRect(0,0,W,H);
+  ctx.textAlign='center';ctx.textBaseline='middle';ctx.shadowBlur=0;
+  amb.forEach(h=>{h.y-=h.v;if(h.y<-20){h.y=H+20;h.x=Math.random()*W}
+    ctx.fillStyle=`hsla(345,80%,${Lt}%,.13)`;ctx.font=h.s+'px '+FONT;ctx.fillText('♥',h.x+Math.sin(t*.6+h.ph)*10,h.y)});
+  const spot=hover>=0?hover:Math.floor(t/1.8)%P.length,dark=Lt>55;
+  let hov=-1;
+  P.forEach((q,i)=>{
+    if(t<q.delay)return;
+    const age=Math.min(1,(t-q.delay)/.9);
+    let ax=(cx+q.hx*B-q.x)*.04,ay=(cy+q.hy*B-q.y)*.04;
+    const dx=q.x-ptr.x,dy=q.y-ptr.y,d=Math.hypot(dx,dy),R=130;
+    if(d<R&&d>.1){const k=Math.pow(1-d/R,2)*3.4;ax+=dx/d*k;ay+=dy/d*k}
+    q.vx=(q.vx+ax)*.88;q.vy=(q.vy+ay)*.88;q.x+=q.vx;q.y+=q.vy;
+    if(Math.abs(ptr.x-q.x)<q.w/2+6&&Math.abs(ptr.y-q.y)<q.size*.8)hov=i;
+    const g=Math.exp(-Math.pow((p-.05-q.s*.25)/.09,2)),sp=i===spot?1:0;
+    ctx.font=(q.size*B*(1+sp*.3))+'px '+FONT;
+    ctx.shadowColor=`hsla(${q.hue},95%,60%,.9)`;ctx.shadowBlur=g*14+sp*22;
+    ctx.fillStyle=`hsla(${q.hue},${dark?85:75}%,${Lt+g*(dark?12:-8)+sp*(dark?10:-6)}%,${age*(.82+.18*Math.max(g,sp))})`;
+    ctx.fillText(q.txt,q.x+Math.sin(t*.9+q.ph)*1,q.y+Math.cos(t*.8+q.ph)*1);
+  });
+  hover=hov;
+  ctx.shadowBlur=0;
+  for(let i=bursts.length-1;i>=0;i--){const b=bursts[i];b.life-=.012;if(b.life<=0){bursts.splice(i,1);continue}
+    b.x+=b.vx;b.y+=b.vy;b.vy-=.03;b.vx*=.985;
+    ctx.font=b.s+'px '+FONT;ctx.fillStyle=`hsla(${b.h},90%,${Lt}%,${b.life})`;ctx.fillText('♥',b.x,b.y)}
+  if(spot!==lastCap&&P[spot]){lastCap=spot;cw.textContent=P[spot].txt;cl.textContent=P[spot].lang}
+  requestAnimationFrame(frame);
+}
+
+function setPtr(e){ptr.x=e.clientX;ptr.y=e.clientY}
+addEventListener('pointermove',setPtr);
+addEventListener('pointerdown',e=>{
+  setPtr(e);
+  for(let i=0;i<16;i++){const a=Math.random()*Math.PI*2,s=1+Math.random()*2.5;
+    bursts.push({x:e.clientX,y:e.clientY,vx:Math.cos(a)*s,vy:Math.sin(a)*s-1,s:10+Math.random()*16,h:335+Math.random()*30,life:1})}
+  P.forEach(q=>{const dx=q.x-e.clientX,dy=q.y-e.clientY,d=Math.hypot(dx,dy);
+    if(d<280&&d>1){const k=(1-d/280)*14;q.vx+=dx/d*k;q.vy+=dy/d*k}})
+});
+addEventListener('pointerup',e=>{if(e.pointerType!=='mouse'){ptr.x=ptr.y=-999}});
+addEventListener('pointerleave',()=>{ptr.x=ptr.y=-999});
+let rt,lw=innerWidth,lh=innerHeight;addEventListener('resize',()=>{clearTimeout(rt);rt=setTimeout(()=>{if(innerWidth!==lw||Math.abs(innerHeight-lh)>150){lw=innerWidth;lh=innerHeight;build()}},150)});
+build();requestAnimationFrame(frame);
+</script>
+</body>
+</html>
